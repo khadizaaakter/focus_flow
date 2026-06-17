@@ -1,7 +1,4 @@
 <script setup lang="ts">
-const config = useRuntimeConfig();
-const BASE = config.public.apiBase;
-
 const week = [
   { day: "MON", date: 22 },
   { day: "TUE", date: 23 },
@@ -17,33 +14,70 @@ type Priority = "HIGH" | "MEDIUM" | "LOW";
 interface Task {
   id: number;
   title: string;
+  description: string;
+  status: string;
   time: string;
   priority: Priority;
   done: boolean;
 }
 
-const { data: tasks, refresh } = await useFetch<Task[]>(`${BASE}/api/tasks`, {
+const { data: tasks, refresh } = await useFetch<Task[]>("/api/tasks", {
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
   },
 });
 
-const newTask = ref("");
+const newDescription = ref("");
+const newPriority = ref<Priority>("MEDIUM");
+const newDueDate = ref("");
+const newStartTime = ref("");
+const newEndTime = ref("");
+
+const taskError = ref("");
+
 async function addTask() {
-  const title = newTask.value.trim();
-  if (!title) return;
-  await $fetch(`${BASE}/api/tasks`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: { title, priority: "LOW", done: false },
-  });
-  newTask.value = "";
-  await refresh();
+  const description = newDescription.value.trim();
+  if (!description) return;
+  taskError.value = "";
+  try {
+    await $fetch("/api/tasks", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: {
+        description,
+        priority: newPriority.value.toLowerCase(),
+        status: "pending",
+        due_date: newDueDate.value,
+        start_time: newStartTime.value,
+        end_time: newEndTime.value,
+      },
+    });
+    newDescription.value = "";
+    newPriority.value = "MEDIUM";
+    newDueDate.value = "";
+    newStartTime.value = "";
+    newEndTime.value = "";
+    await refresh();
+  } catch (e: any) {
+    taskError.value = e?.data?.message ?? "Failed to create task.";
+  }
 }
+
+const priorityOptions: { value: Priority; label: string }[] = [
+  { value: "HIGH", label: "High" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "LOW", label: "Low" },
+];
+
+const prioritySelectStyles: Record<Priority, string> = {
+  HIGH: "bg-rose-100 text-rose-600 border-rose-200",
+  MEDIUM: "bg-sky-100 text-sky-600 border-sky-200",
+  LOW: "bg-gray-100 text-gray-500 border-gray-200",
+};
 
 const priorityStyles: Record<Priority, string> = {
   HIGH: "bg-rose-100 text-rose-600",
@@ -62,7 +96,8 @@ const habits = ref([
   { label: "Read 20 Pages", on: false },
 ]);
 
-const activeCount = (tasks: Task[] | null | undefined) => (tasks ?? []).filter((t) => !t.done).length;
+const activeCount = (tasks: Task[] | null | undefined) =>
+  (tasks ?? []).filter((t) => !t.done).length;
 </script>
 
 <template>
@@ -114,30 +149,104 @@ const activeCount = (tasks: Task[] | null | undefined) => (tasks ?? []).filter((
         <!-- Quick add -->
         <form
           @submit.prevent="addTask"
-          class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
+          class="space-y-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
         >
-          <svg
-            class="h-5 w-5 text-emerald-500"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            viewBox="0 0 24 24"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8M8 12h8" />
-          </svg>
-          <input
-            v-model="newTask"
-            type="text"
-            placeholder="Add a quick task (e.g., 'Draft project proposal')..."
-            class="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
-          />
-          <button
-            type="submit"
-            class="rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-50"
-          >
-            Enter
-          </button>
+          <p v-if="taskError" class="text-xs font-medium text-rose-500">{{ taskError }}</p>
+          <!-- Description row -->
+          <div class="flex items-center gap-3">
+            <svg
+              class="h-5 w-5 shrink-0 text-emerald-500"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8M8 12h8" />
+            </svg>
+            <input
+              v-model="newDescription"
+              type="text"
+              placeholder="Add a task description..."
+              class="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
+            />
+          </div>
+
+          <!-- Priority + Due date + Submit row -->
+          <div class="flex items-center gap-2 pl-8">
+            <!-- Priority buttons -->
+            <div class="flex gap-1">
+              <button
+                v-for="opt in priorityOptions"
+                :key="opt.value"
+                type="button"
+                @click="newPriority = opt.value"
+                class="rounded-md border px-2 py-0.5 text-[10px] font-bold tracking-wide transition"
+                :class="
+                  newPriority === opt.value
+                    ? prioritySelectStyles[opt.value]
+                    : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50'
+                "
+              >
+                {{ opt.label }}
+              </button>
+            </div>
+
+            <!-- Due date picker -->
+            <div
+              class="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-0.5"
+            >
+              <svg
+                class="h-3.5 w-3.5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+              <input
+                v-model="newDueDate"
+                type="date"
+                class="bg-transparent text-[11px] text-gray-500 focus:outline-none"
+              />
+            </div>
+
+            <!-- Time range picker -->
+            <div
+              class="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-0.5"
+            >
+              <svg
+                class="h-3.5 w-3.5 shrink-0 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path stroke-linecap="round" d="M12 7v5l3 3" />
+              </svg>
+              <input
+                v-model="newStartTime"
+                type="time"
+                class="bg-transparent text-[11px] text-gray-500 focus:outline-none"
+              />
+              <span class="text-[11px] text-gray-400">to</span>
+              <input
+                v-model="newEndTime"
+                type="time"
+                class="bg-transparent text-[11px] text-gray-500 focus:outline-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              class="ml-auto rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-50"
+            >
+              Add Task
+            </button>
+          </div>
         </form>
 
         <!-- Weekly view -->
@@ -248,9 +357,9 @@ const activeCount = (tasks: Task[] | null | undefined) => (tasks ?? []).filter((
                   class="text-sm font-semibold"
                   :class="task.done ? 'text-gray-400 line-through' : 'text-gray-900'"
                 >
-                  {{ task.title }}
+                  {{ task.description }}
                 </p>
-                <p class="mt-0.5 flex items-center gap-1 text-xs text-gray-400">
+                <!-- <p class="mt-0.5 flex items-center gap-1 text-xs text-gray-400">
                   <svg
                     class="h-3 w-3"
                     fill="none"
@@ -266,7 +375,7 @@ const activeCount = (tasks: Task[] | null | undefined) => (tasks ?? []).filter((
                     />
                   </svg>
                   {{ task.time }}
-                </p>
+                </p> -->
               </div>
               <span
                 class="rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide"
