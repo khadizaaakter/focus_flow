@@ -16,8 +16,10 @@ interface Task {
   title: string;
   description: string;
   status: string;
-  time: string;
   priority: Priority;
+  due_date: string;
+  start_time: string;
+  end_time: string;
   done: boolean;
 }
 
@@ -66,6 +68,55 @@ async function addTask() {
     taskError.value = e?.data?.message ?? "Failed to create task.";
   }
 }
+
+const editingTask = ref<Task | null>(null);
+const editForm = ref({
+  description: "",
+  priority: "medium",
+  status: "pending",
+  due_date: "",
+  start_time: "",
+  end_time: "",
+});
+const updateError = ref("");
+
+function openEdit(task: Task) {
+  editingTask.value = task;
+  editForm.value = {
+    description: task.description,
+    priority: task.priority?.toLowerCase() ?? "medium",
+    status: task.status ?? "pending",
+    due_date: task.due_date ?? "",
+    start_time: task.start_time ?? "",
+    end_time: task.end_time ?? "",
+  };
+  updateError.value = "";
+}
+
+function closeEdit() {
+  editingTask.value = null;
+}
+
+async function updateTask() {
+  if (!editingTask.value) return;
+  updateError.value = "";
+  try {
+    await $fetch(`/api/tasks/${editingTask.value.id}`, {
+      method: "PUT",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: { ...editForm.value },
+    });
+    closeEdit();
+    await refresh();
+  } catch (e: any) {
+    updateError.value = e?.data?.message ?? "Failed to update task.";
+  }
+}
+
+const statusOptions = ["pending", "in_progress", "completed"];
 
 const priorityOptions: { value: Priority; label: string }[] = [
   { value: "HIGH", label: "High" },
@@ -383,10 +434,128 @@ const activeCount = (tasks: Task[] | null | undefined) =>
               >
                 {{ task.priority }}
               </span>
+
+              <!-- Edit icon -->
+              <button
+                @click="openEdit(task)"
+                class="ml-1 rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                aria-label="Edit task"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H7v-3a2 2 0 01.586-1.414z" />
+                </svg>
+              </button>
             </li>
           </ul>
         </div>
       </section>
+
+      <!-- Edit modal -->
+      <Teleport to="body">
+        <div
+          v-if="editingTask"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          @click.self="closeEdit"
+        >
+          <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 class="mb-4 text-base font-bold text-gray-900">Edit Task</h3>
+
+            <p v-if="updateError" class="mb-3 text-xs font-medium text-rose-500">{{ updateError }}</p>
+
+            <div class="space-y-4">
+              <!-- Description -->
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-500">Description</label>
+                <input
+                  v-model="editForm.description"
+                  type="text"
+                  class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-emerald-400 focus:outline-none"
+                />
+              </div>
+
+              <!-- Priority -->
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-500">Priority</label>
+                <div class="flex gap-2">
+                  <button
+                    v-for="opt in priorityOptions"
+                    :key="opt.value"
+                    type="button"
+                    @click="editForm.priority = opt.value.toLowerCase()"
+                    class="rounded-md border px-3 py-1 text-xs font-bold tracking-wide transition"
+                    :class="editForm.priority === opt.value.toLowerCase()
+                      ? prioritySelectStyles[opt.value]
+                      : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50'"
+                  >
+                    {{ opt.label }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Status -->
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-500">Status</label>
+                <select
+                  v-model="editForm.status"
+                  class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-emerald-400 focus:outline-none"
+                >
+                  <option v-for="s in statusOptions" :key="s" :value="s">
+                    {{ s.replace("_", " ") }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Due date -->
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-500">Due Date</label>
+                <input
+                  v-model="editForm.due_date"
+                  type="date"
+                  class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-emerald-400 focus:outline-none"
+                />
+              </div>
+
+              <!-- Time range -->
+              <div class="flex gap-3">
+                <div class="flex-1">
+                  <label class="mb-1 block text-xs font-medium text-gray-500">Start Time</label>
+                  <input
+                    v-model="editForm.start_time"
+                    type="time"
+                    class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-emerald-400 focus:outline-none"
+                  />
+                </div>
+                <div class="flex-1">
+                  <label class="mb-1 block text-xs font-medium text-gray-500">End Time</label>
+                  <input
+                    v-model="editForm.end_time"
+                    type="time"
+                    class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-emerald-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                @click="closeEdit"
+                class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                @click="updateTask"
+                class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- Right column -->
       <aside class="w-64 shrink-0 space-y-5">
