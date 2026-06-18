@@ -1,10 +1,12 @@
 <script setup lang="ts">
+const route = useRoute()
+
 const nav = [
-  { label: "Tasks", icon: "tasks", path: "/tasks", active: true },
-  { label: "Habits", icon: "habits", path: "/habits", active: false },
-  { label: "Timer", icon: "timer", path: "/timer", active: false },
-  { label: "Insights", icon: "insights", path: "/insights", active: false },
-];
+  { label: "Tasks", icon: "tasks", path: "/tasks" },
+  { label: "Habits", icon: "habits", path: "/habits" },
+  { label: "Timer", icon: "timer", path: "/timer" },
+  { label: "Insights", icon: "insights", path: "/insights" },
+]
 </script>
 
 <template>
@@ -43,7 +45,7 @@ const nav = [
           :to="item.path"
           class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition"
           :class="
-            item.active
+            route.path === item.path
               ? 'bg-emerald-100 text-emerald-700'
               : 'border border-dashed border-gray-200 text-gray-500 hover:bg-gray-50'
           "
