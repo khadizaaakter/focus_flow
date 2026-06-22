@@ -23,7 +23,9 @@ interface Task {
   done: boolean;
 }
 
-const { data: tasks, refresh } = await useFetch<Task[]>("/api/tasks", {
+const API = "http://127.0.0.1:8000"
+
+const { data: tasks, refresh } = await useFetch<Task[]>(`${API}/api/tasks`, {
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -43,7 +45,7 @@ async function addTask() {
   if (!description) return;
   taskError.value = "";
   try {
-    await $fetch("/api/tasks", {
+    await $fetch(`${API}/api/tasks`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -101,7 +103,7 @@ async function updateTask() {
   if (!editingTask.value) return;
   updateError.value = "";
   try {
-    await $fetch(`/api/tasks/${editingTask.value.id}`, {
+    await $fetch(`${API}/api/tasks/${editingTask.value.id}`, {
       method: "PUT",
       headers: {
         Accept: "application/json",
@@ -114,6 +116,14 @@ async function updateTask() {
   } catch (e: any) {
     updateError.value = e?.data?.message ?? "Failed to update task.";
   }
+}
+
+async function deleteTask(id: number) {
+  await $fetch(`${API}/api/tasks/${id}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  await refresh();
 }
 
 const statusOptions = ["pending", "in_progress", "completed"];
@@ -443,6 +453,17 @@ const activeCount = (tasks: Task[] | null | undefined) =>
               >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H7v-3a2 2 0 01.586-1.414z" />
+                </svg>
+              </button>
+
+              <!-- Delete icon -->
+              <button
+                @click="deleteTask(task.id)"
+                class="rounded p-1 text-gray-400 transition hover:bg-rose-50 hover:text-rose-500"
+                aria-label="Delete task"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0a1 1 0 00-1-1h-4a1 1 0 00-1 1m-4 0h10" />
                 </svg>
               </button>
             </li>
