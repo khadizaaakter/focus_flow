@@ -23,7 +23,7 @@ interface Task {
   done: boolean;
 }
 
-const API = "http://127.0.0.1:8000"
+const API = "http://127.0.0.1:8000";
 
 const { data: tasks, refresh } = await useFetch<Task[]>(`${API}/api/tasks`, {
   headers: {
@@ -56,8 +56,8 @@ async function addTask() {
         priority: newPriority.value.toLowerCase(),
         status: "pending",
         due_date: newDueDate.value,
-        start_time: newStartTime.value,
-        end_time: newEndTime.value,
+        start_time: newStartTime.value || null,
+        end_time: newEndTime.value || null,
       },
     });
     newDescription.value = "";
@@ -109,7 +109,11 @@ async function updateTask() {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: { ...editForm.value },
+      body: {
+        ...editForm.value,
+        start_time: editForm.value.start_time || null,
+        end_time: editForm.value.end_time || null,
+      },
     });
     closeEdit();
     await refresh();
@@ -212,7 +216,9 @@ const activeCount = (tasks: Task[] | null | undefined) =>
           @submit.prevent="addTask"
           class="space-y-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
         >
-          <p v-if="taskError" class="text-xs font-medium text-rose-500">{{ taskError }}</p>
+          <p v-if="taskError" class="text-xs font-medium text-rose-500">
+            {{ taskError }}
+          </p>
           <!-- Description row -->
           <div class="flex items-center gap-3">
             <svg
@@ -379,7 +385,7 @@ const activeCount = (tasks: Task[] | null | undefined) =>
             </span>
             <span
               class="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500"
-              >12 Done</span
+              >{{ activeCount(tasks) }}</span
             >
           </div>
 
@@ -451,8 +457,18 @@ const activeCount = (tasks: Task[] | null | undefined) =>
                 class="ml-1 rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
                 aria-label="Edit task"
               >
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H7v-3a2 2 0 01.586-1.414z" />
+                <svg
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H7v-3a2 2 0 01.586-1.414z"
+                  />
                 </svg>
               </button>
 
@@ -462,8 +478,18 @@ const activeCount = (tasks: Task[] | null | undefined) =>
                 class="rounded p-1 text-gray-400 transition hover:bg-rose-50 hover:text-rose-500"
                 aria-label="Delete task"
               >
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0a1 1 0 00-1-1h-4a1 1 0 00-1 1m-4 0h10" />
+                <svg
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0a1 1 0 00-1-1h-4a1 1 0 00-1 1m-4 0h10"
+                  />
                 </svg>
               </button>
             </li>
@@ -481,12 +507,16 @@ const activeCount = (tasks: Task[] | null | undefined) =>
           <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <h3 class="mb-4 text-base font-bold text-gray-900">Edit Task</h3>
 
-            <p v-if="updateError" class="mb-3 text-xs font-medium text-rose-500">{{ updateError }}</p>
+            <p v-if="updateError" class="mb-3 text-xs font-medium text-rose-500">
+              {{ updateError }}
+            </p>
 
             <div class="space-y-4">
               <!-- Description -->
               <div>
-                <label class="mb-1 block text-xs font-medium text-gray-500">Description</label>
+                <label class="mb-1 block text-xs font-medium text-gray-500"
+                  >Description</label
+                >
                 <input
                   v-model="editForm.description"
                   type="text"
@@ -496,7 +526,9 @@ const activeCount = (tasks: Task[] | null | undefined) =>
 
               <!-- Priority -->
               <div>
-                <label class="mb-1 block text-xs font-medium text-gray-500">Priority</label>
+                <label class="mb-1 block text-xs font-medium text-gray-500"
+                  >Priority</label
+                >
                 <div class="flex gap-2">
                   <button
                     v-for="opt in priorityOptions"
@@ -504,9 +536,11 @@ const activeCount = (tasks: Task[] | null | undefined) =>
                     type="button"
                     @click="editForm.priority = opt.value.toLowerCase()"
                     class="rounded-md border px-3 py-1 text-xs font-bold tracking-wide transition"
-                    :class="editForm.priority === opt.value.toLowerCase()
-                      ? prioritySelectStyles[opt.value]
-                      : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50'"
+                    :class="
+                      editForm.priority === opt.value.toLowerCase()
+                        ? prioritySelectStyles[opt.value]
+                        : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50'
+                    "
                   >
                     {{ opt.label }}
                   </button>
@@ -528,7 +562,9 @@ const activeCount = (tasks: Task[] | null | undefined) =>
 
               <!-- Due date -->
               <div>
-                <label class="mb-1 block text-xs font-medium text-gray-500">Due Date</label>
+                <label class="mb-1 block text-xs font-medium text-gray-500"
+                  >Due Date</label
+                >
                 <input
                   v-model="editForm.due_date"
                   type="date"
@@ -539,7 +575,9 @@ const activeCount = (tasks: Task[] | null | undefined) =>
               <!-- Time range -->
               <div class="flex gap-3">
                 <div class="flex-1">
-                  <label class="mb-1 block text-xs font-medium text-gray-500">Start Time</label>
+                  <label class="mb-1 block text-xs font-medium text-gray-500"
+                    >Start Time</label
+                  >
                   <input
                     v-model="editForm.start_time"
                     type="time"
@@ -547,7 +585,9 @@ const activeCount = (tasks: Task[] | null | undefined) =>
                   />
                 </div>
                 <div class="flex-1">
-                  <label class="mb-1 block text-xs font-medium text-gray-500">End Time</label>
+                  <label class="mb-1 block text-xs font-medium text-gray-500"
+                    >End Time</label
+                  >
                   <input
                     v-model="editForm.end_time"
                     type="time"
