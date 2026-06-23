@@ -155,11 +155,79 @@ const priorityBar: Record<Priority, string> = {
   LOW: "bg-emerald-400",
 };
 
-const habits = ref([
-  { label: "Meditate 10m", on: false },
-  { label: "Drink 2L Water", on: true },
-  { label: "Read 20 Pages", on: false },
-]);
+// ── Sidebar habits from API ──────────────────────────────────────────────────
+interface SidebarHabit { id: number; name: string; frequency: string }
+const { data: sidebarHabitsData } = await useFetch<SidebarHabit[]>(`${API}/api/habits`, {
+  headers: { Accept: 'application/json' },
+});
+const habitDoneSet = ref<Set<number>>(new Set());
+const sidebarHabits = computed(() =>
+  (sidebarHabitsData.value ?? []).slice(0, 5).map((h) => ({
+    id: h.id,
+    label: h.name,
+    on: habitDoneSet.value.has(h.id),
+  }))
+);
+function toggleSidebarHabit(id: number) {
+  if (habitDoneSet.value.has(id)) { habitDoneSet.value.delete(id); }
+  else { habitDoneSet.value.add(id); }
+  habitDoneSet.value = new Set(habitDoneSet.value);
+}
+
+// ── Focus Timer ──────────────────────────────────────────────────────────────
+const TIMER_MINUTES = 25;
+const timeLeft = ref(TIMER_MINUTES * 60);
+const timerRunning = ref(false);
+const activeTimerId = ref<number | null>(null);
+let timerInterval: ReturnType<typeof setInterval> | null = null;
+
+const formattedTime = computed(() => {
+  const m = Math.floor(timeLeft.value / 60).toString().padStart(2, '0');
+  const s = (timeLeft.value % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+});
+
+async function startTimer() {
+  if (timerRunning.value) return;
+  try {
+    const timer = await $fetch<{ id: number }>(`${API}/api/focus-timers/start`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: { duration: TIMER_MINUTES },
+    });
+    activeTimerId.value = timer.id;
+    timerRunning.value = true;
+    timerInterval = setInterval(async () => {
+      timeLeft.value--;
+      if (timeLeft.value <= 0) {
+        clearInterval(timerInterval!);
+        timerRunning.value = false;
+        if (activeTimerId.value !== null) {
+          await $fetch(`${API}/api/focus-timers/${activeTimerId.value}/complete`, {
+            method: 'PUT',
+            headers: { Accept: 'application/json' },
+          });
+          activeTimerId.value = null;
+        }
+        timeLeft.value = TIMER_MINUTES * 60;
+      }
+    }, 1000);
+  } catch { /* silently ignore */ }
+}
+
+async function stopTimer() {
+  if (!timerRunning.value || activeTimerId.value === null) return;
+  clearInterval(timerInterval!);
+  timerRunning.value = false;
+  try {
+    await $fetch(`${API}/api/focus-timers/${activeTimerId.value}/stop`, {
+      method: 'PUT',
+      headers: { Accept: 'application/json' },
+    });
+  } catch { /* silently ignore */ }
+  activeTimerId.value = null;
+  timeLeft.value = TIMER_MINUTES * 60;
+}
 
 const activeCount = (tasks: Task[] | null | undefined) =>
   (tasks ?? []).filter((t) => !t.done).length;
@@ -625,11 +693,20 @@ const activeCount = (tasks: Task[] | null | undefined) =>
           <p class="text-[11px] font-semibold tracking-[0.2em] text-gray-400">
             DEEP WORK FOCUS
           </p>
-          <p class="mt-3 text-5xl font-extrabold tracking-tight">25:00</p>
+          <p class="mt-3 text-5xl font-extrabold tracking-tight">{{ formattedTime }}</p>
           <button
+            v-if="!timerRunning"
+            @click="startTimer"
             class="mt-5 w-full rounded-lg bg-emerald-400 py-2.5 text-sm font-bold text-gray-900 transition hover:bg-emerald-300"
           >
             Start Flow
+          </button>
+          <button
+            v-else
+            @click="stopTimer"
+            class="mt-5 w-full rounded-lg bg-rose-500 py-2.5 text-sm font-bold text-white transition hover:bg-rose-400"
+          >
+            Stop
           </button>
         </div>
 
@@ -656,16 +733,16 @@ const activeCount = (tasks: Task[] | null | undefined) =>
               </svg>
             </button>
           </div>
-          <ul class="mt-4 space-y-3">
+          <ul v-if="sidebarHabits.length > 0" class="mt-4 space-y-3">
             <li
-              v-for="habit in habits"
-              :key="habit.label"
+              v-for="habit in sidebarHabits"
+              :key="habit.id"
               class="flex items-center justify-between"
             >
-              <span class="text-sm text-gray-600">{{ habit.label }}</span>
+              <span class="text-sm text-gray-600 truncate pr-2">{{ habit.label }}</span>
               <button
-                @click="habit.on = !habit.on"
-                class="relative h-5 w-9 rounded-full transition"
+                @click="toggleSidebarHabit(habit.id)"
+                class="relative h-5 w-9 shrink-0 rounded-full transition"
                 :class="habit.on ? 'bg-emerald-400' : 'bg-gray-200'"
                 role="switch"
                 :aria-checked="habit.on"
@@ -677,6 +754,7 @@ const activeCount = (tasks: Task[] | null | undefined) =>
               </button>
             </li>
           </ul>
+          <p v-else class="mt-4 text-xs text-gray-400">No habits yet.</p>
         </div>
 
         <!-- Focus score -->
