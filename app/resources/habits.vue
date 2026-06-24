@@ -47,21 +47,57 @@ const ICONS: Record<string, string> = {
 
 const DAILY_ICON = "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z";
 
-// Simulated 7-day (Mon–Sun) completion grids, cycled across habits
-const WEEK_GRIDS: number[][] = [
-  [1, 1, 1, 0, 0, 0, 0],
-  [1, 0, 0, 0, 0, 0, 0],
-  [1, 1, 1, 1, 0, 0, 0],
-  [1, 1, 0, 0, 0, 0, 0],
-  [1, 1, 1, 1, 1, 0, 0],
-];
+// ── Date helpers ──────────────────────────────────────────────────────────────
+const _now = new Date();
+const _pad = (n: number) => String(n).padStart(2, "0");
+const todayStr = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(_now.getDate())}`;
 
-// Multipliers to produce realistic-looking streak numbers
-const STREAK_MUL = [4, 2, 1, 3, 1];
+function getWeekDates(): string[] {
+  const d = new Date(_now);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return Array.from({ length: 7 }, (_, i) => {
+    const w = new Date(d);
+    w.setDate(d.getDate() + i);
+    return `${w.getFullYear()}-${_pad(w.getMonth() + 1)}-${_pad(w.getDate())}`;
+  });
+}
+
+const WEEK_DATES = getWeekDates();
 
 function colorFor(h: ApiHabit, idx: number): ColorTheme {
   const key = (h.category_color ?? "").toLowerCase();
   return COLOR_MAP[key] ?? DEFAULT_COLORS[idx % DEFAULT_COLORS.length] ?? DEFAULT_COLORS[0]!;
+}
+
+// ── Habit log + streak data ───────────────────────────────────────────────────
+interface HabitLogsResp { habit_id: number; logs: string[] }
+interface HabitStreakResp { habit_id: number; current_streak: number; longest_streak: number }
+
+const habitLogsMap   = ref<Record<number, string[]>>({});
+const habitStreakMap = ref<Record<number, number>>({});
+
+async function fetchHabitExtras(list: ApiHabit[]) {
+  await Promise.all(
+    list.map(async (h) => {
+      try {
+        const [logsResp, streakResp] = await Promise.all([
+          $fetch<HabitLogsResp>(`${API}/api/habits/${h.id}/logs`, {
+            headers: { Accept: "application/json" },
+          }),
+          $fetch<HabitStreakResp>(`${API}/api/habits/${h.id}/streak`, {
+            headers: { Accept: "application/json" },
+          }),
+        ]);
+        habitLogsMap.value[h.id]   = logsResp.logs ?? [];
+        habitStreakMap.value[h.id] = streakResp.current_streak ?? 0;
+      } catch {
+        habitLogsMap.value[h.id]   = [];
+        habitStreakMap.value[h.id] = 0;
+      }
+    })
+  );
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -69,27 +105,44 @@ const { data: apiHabits, refresh } = await useFetch<ApiHabit[]>(`${API}/api/habi
   headers: { Accept: "application/json" },
 });
 
-const activeSet = ref<Set<number>>(new Set());
+// Load logs + streaks for the initial list
+if (apiHabits.value?.length) {
+  await fetchHabitExtras(apiHabits.value);
+}
 
 const habits = computed(() =>
   (apiHabits.value ?? []).map((h, i) => {
-    const grid = WEEK_GRIDS[i % WEEK_GRIDS.length] ?? [];
-    const mul  = STREAK_MUL[i % STREAK_MUL.length] ?? 1;
+    const logs   = new Set(habitLogsMap.value[h.id] ?? []);
+    const grid   = WEEK_DATES.map((d) => (logs.has(d) ? 1 : 0));
+    const streak = habitStreakMap.value[h.id] ?? 0;
     return {
       ...h,
       color:  colorFor(h, i),
       icon:   ICONS[h.frequency] ?? DAILY_ICON,
-      active: activeSet.value.has(h.id),
+      active: logs.has(todayStr),
       grid,
-      streak: grid.filter((v) => v === 1).length * mul,
+      streak,
     };
   })
 );
 
-function toggleActive(id: number) {
-  if (activeSet.value.has(id)) activeSet.value.delete(id);
-  else activeSet.value.add(id);
-  activeSet.value = new Set(activeSet.value);
+// Re-fetch extras whenever the habits list changes (after create/edit/delete)
+watch(apiHabits, async (newList) => {
+  if (newList?.length) await fetchHabitExtras(newList);
+});
+
+// Log today's completion (POST /habits/{id}/log)
+async function logHabit(id: number) {
+  try {
+    await $fetch(`${API}/api/habits/${id}/log`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: { logged_date: todayStr },
+    });
+    // Refresh extras for this habit only
+    const habit = apiHabits.value?.find((h) => h.id === id);
+    if (habit) await fetchHabitExtras([habit]);
+  } catch {}
 }
 
 // ── Create ────────────────────────────────────────────────────────────────────
@@ -181,7 +234,8 @@ async function deleteHabit(id: number) {
       method: "DELETE",
       headers: { Accept: "application/json" },
     });
-    activeSet.value.delete(id);
+    delete habitLogsMap.value[id];
+    delete habitStreakMap.value[id];
     await refresh();
   } catch {}
 }
@@ -195,7 +249,8 @@ const avgStreak = computed(() => {
 
 const efficiency = computed(() => {
   if (habits.value.length === 0) return 0;
-  return Math.round((activeSet.value.size / habits.value.length) * 100);
+  const loggedToday = habits.value.filter((h) => h.active).length;
+  return Math.round((loggedToday / habits.value.length) * 100);
 });
 
 // SVG ring: r=14, circumference = 2π×14 ≈ 87.96
@@ -378,7 +433,7 @@ const colorOptions = ["blue", "emerald", "rose", "amber", "violet"] as const;
             <div class="flex shrink-0 items-center gap-1.5">
               <!-- Complete toggle -->
               <button
-                @click="toggleActive(habit.id)"
+                @click="logHabit(habit.id)"
                 class="flex h-8 w-8 items-center justify-center rounded-full border-2 transition"
                 :class="
                   habit.active

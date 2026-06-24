@@ -2,10 +2,10 @@
 const route = useRoute()
 
 const nav = [
-  { label: "Tasks", icon: "tasks", path: "/tasks" },
-  { label: "Habits", icon: "habits", path: "/habits" },
-  { label: "Timer", icon: "timer", path: "/timer" },
-  { label: "Insights", icon: "insights", path: "/insights" },
+  { label: "Planner",    icon: "tasks",    path: "/tasks" },
+  { label: "Habits",     icon: "habits",   path: "/habits" },
+  { label: "Focus Room", icon: "timer",    path: "/focus-room" },
+  { label: "Insights",   icon: "insights", path: "/insights" },
 ]
 </script>
 
