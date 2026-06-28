@@ -484,22 +484,12 @@ async function stopTimer() {
 
           <div class="px-4 pb-4 pt-5 sm:px-5">
             <div class="flex items-center gap-3 sm:gap-4">
-              <div
-                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-gray-800 to-gray-950 shadow-sm"
-              >
-                <svg
-                  class="h-4 w-4 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
+              <div class="flex h-8 w-8 shrink-0 items-center justify-center">
+                <img
+                  src="/gif/add new.gif"
+                  alt="Add"
+                  class="h-full w-full object-cover"
+                />
               </div>
               <input
                 v-model="newTitle"
@@ -555,11 +545,6 @@ async function stopTimer() {
                   {{ c.label }}
                 </option>
               </select>
-              <kbd
-                class="ml-auto hidden rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-medium text-gray-400 sm:block"
-              >
-                ⏎ Enter
-              </kbd>
             </div>
           </div>
         </form>
