@@ -311,6 +311,62 @@ const categoryOptions = [
   { value: "health", label: "Health" },
 ];
 
+// ── Category dropdown ─────────────────────────────────────────────────────────
+const categoryOpen = ref(false);
+const editCategoryOpen = ref(false);
+const categoryDropdownRef = ref<HTMLElement | null>(null);
+const editCategoryDropdownRef = ref<HTMLElement | null>(null);
+
+const categoryConfig: Record<
+  string,
+  { icon: string; color: string; bg: string; ring: string }
+> = {
+  core_work: {
+    icon: "💼",
+    color: "text-violet-700",
+    bg: "bg-violet-50",
+    ring: "ring-violet-200",
+  },
+  admin: { icon: "📋", color: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200" },
+  learning: {
+    icon: "📚",
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+    ring: "ring-amber-200",
+  },
+  personal: {
+    icon: "🌿",
+    color: "text-emerald-700",
+    bg: "bg-emerald-50",
+    ring: "ring-emerald-200",
+  },
+  health: { icon: "❤️", color: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200" },
+};
+
+function getCategoryConf(val: string) {
+  return (
+    categoryConfig[val] ?? {
+      icon: "📁",
+      color: "text-gray-600",
+      bg: "bg-gray-50",
+      ring: "ring-gray-200",
+    }
+  );
+}
+
+function handleCategoryClickOutside(e: MouseEvent) {
+  if (categoryDropdownRef.value && !categoryDropdownRef.value.contains(e.target as Node))
+    categoryOpen.value = false;
+  if (
+    editCategoryDropdownRef.value &&
+    !editCategoryDropdownRef.value.contains(e.target as Node)
+  )
+    editCategoryOpen.value = false;
+}
+
+onMounted(() => document.addEventListener("click", handleCategoryClickOutside));
+onUnmounted(() => document.removeEventListener("click", handleCategoryClickOutside));
+
 // ── Habits sidebar ────────────────────────────────────────────────────────────
 interface SidebarHabit {
   id: number;
@@ -537,14 +593,92 @@ async function stopTimer() {
                 class="hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400 sm:block"
                 >Category</span
               >
-              <select
-                v-model="newCategory"
-                class="hidden rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100 sm:block"
-              >
-                <option v-for="c in categoryOptions" :key="c.value" :value="c.value">
-                  {{ c.label }}
-                </option>
-              </select>
+              <!-- Custom category dropdown (quick-add bar) -->
+              <div ref="categoryDropdownRef" class="relative hidden sm:block">
+                <button
+                  type="button"
+                  @click.stop="categoryOpen = !categoryOpen"
+                  class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold shadow-sm transition hover:border-gray-300 hover:shadow focus:outline-none"
+                  :class="getCategoryConf(newCategory).color"
+                >
+                  <span class="leading-none">{{
+                    getCategoryConf(newCategory).icon
+                  }}</span>
+                  <span>{{
+                    categoryOptions.find((c) => c.value === newCategory)?.label
+                  }}</span>
+                  <svg
+                    class="h-3 w-3 text-gray-400 transition-transform duration-200"
+                    :class="{ 'rotate-180': categoryOpen }"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+
+                <Transition
+                  enter-active-class="transition duration-150 ease-out origin-top"
+                  enter-from-class="opacity-0 scale-95 -translate-y-1"
+                  enter-to-class="opacity-100 scale-100 translate-y-0"
+                  leave-active-class="transition duration-100 ease-in origin-top"
+                  leave-from-class="opacity-100 scale-100 translate-y-0"
+                  leave-to-class="opacity-0 scale-95 -translate-y-1"
+                >
+                  <div
+                    v-if="categoryOpen"
+                    class="absolute left-0 top-full z-30 mt-1.5 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl"
+                  >
+                    <div class="space-y-0.5 p-1.5">
+                      <button
+                        v-for="c in categoryOptions"
+                        :key="c.value"
+                        type="button"
+                        @click.stop="
+                          newCategory = c.value;
+                          categoryOpen = false;
+                        "
+                        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[11px] font-semibold transition-all"
+                        :class="
+                          newCategory === c.value
+                            ? [
+                                getCategoryConf(c.value).bg,
+                                getCategoryConf(c.value).color,
+                                'ring-1',
+                                getCategoryConf(c.value).ring,
+                              ]
+                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                        "
+                      >
+                        <span class="text-sm leading-none">{{
+                          getCategoryConf(c.value).icon
+                        }}</span>
+                        {{ c.label }}
+                        <svg
+                          v-if="newCategory === c.value"
+                          class="ml-auto h-3 w-3 shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </Transition>
+              </div>
             </div>
           </div>
         </form>
@@ -958,39 +1092,6 @@ async function stopTimer() {
         </div>
 
         <!-- Quote card -->
-        <div
-          class="relative overflow-hidden rounded-2xl bg-gray-900 p-5 text-white shadow-sm"
-        >
-          <div
-            class="absolute inset-0 opacity-50"
-            style="
-              background: radial-gradient(
-                circle at 30% 130%,
-                #10b981 0%,
-                transparent 60%
-              );
-            "
-          ></div>
-          <div class="relative">
-            <svg
-              class="mb-3 h-6 w-6 text-emerald-400/50"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"
-              />
-            </svg>
-            <p class="text-sm font-medium italic leading-relaxed text-gray-100">
-              "Simplicity is the ultimate sophistication."
-            </p>
-            <p
-              class="mt-3 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400"
-            >
-              — Leonardo da Vinci
-            </p>
-          </div>
-        </div>
       </aside>
     </div>
   </main>
@@ -1092,18 +1193,96 @@ async function stopTimer() {
               </div>
             </div>
 
+            <!-- Custom category dropdown (edit modal) -->
             <div>
               <label class="mb-1.5 block text-xs font-semibold text-gray-500"
                 >Category</label
               >
-              <select
-                v-model="editForm.category"
-                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-emerald-400 focus:outline-none"
-              >
-                <option v-for="c in categoryOptions" :key="c.value" :value="c.value">
-                  {{ c.label }}
-                </option>
-              </select>
+              <div ref="editCategoryDropdownRef" class="relative">
+                <button
+                  type="button"
+                  @click.stop="editCategoryOpen = !editCategoryOpen"
+                  class="flex w-full items-center gap-2.5 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold shadow-sm transition hover:border-gray-300 focus:outline-none"
+                  :class="getCategoryConf(editForm.category).color"
+                >
+                  <span class="text-base leading-none">{{
+                    getCategoryConf(editForm.category).icon
+                  }}</span>
+                  <span class="flex-1 text-left">{{
+                    categoryOptions.find((c) => c.value === editForm.category)?.label
+                  }}</span>
+                  <svg
+                    class="h-4 w-4 text-gray-400 transition-transform duration-200"
+                    :class="{ 'rotate-180': editCategoryOpen }"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+
+                <Transition
+                  enter-active-class="transition duration-150 ease-out origin-top"
+                  enter-from-class="opacity-0 scale-95 -translate-y-1"
+                  enter-to-class="opacity-100 scale-100 translate-y-0"
+                  leave-active-class="transition duration-100 ease-in origin-top"
+                  leave-from-class="opacity-100 scale-100 translate-y-0"
+                  leave-to-class="opacity-0 scale-95 -translate-y-1"
+                >
+                  <div
+                    v-if="editCategoryOpen"
+                    class="absolute left-0 top-full z-30 mt-1.5 w-full overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl"
+                  >
+                    <div class="space-y-0.5 p-1.5">
+                      <button
+                        v-for="c in categoryOptions"
+                        :key="c.value"
+                        type="button"
+                        @click.stop="
+                          editForm.category = c.value;
+                          editCategoryOpen = false;
+                        "
+                        class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all"
+                        :class="
+                          editForm.category === c.value
+                            ? [
+                                getCategoryConf(c.value).bg,
+                                getCategoryConf(c.value).color,
+                                'ring-1',
+                                getCategoryConf(c.value).ring,
+                              ]
+                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                        "
+                      >
+                        <span class="text-base leading-none">{{
+                          getCategoryConf(c.value).icon
+                        }}</span>
+                        {{ c.label }}
+                        <svg
+                          v-if="editForm.category === c.value"
+                          class="ml-auto h-3.5 w-3.5 shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </Transition>
+              </div>
             </div>
 
             <div>
