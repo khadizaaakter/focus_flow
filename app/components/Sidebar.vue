@@ -88,11 +88,6 @@ const nav = [
       </div>
     </div>
 
-    <!-- Nav label -->
-    <!-- <p class="mb-2 shrink-0 px-5 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
-      Workspace
-    </p> -->
-
     <!-- Navigation -->
     <nav class="flex-1 space-y-0.5 overflow-y-auto px-3">
       <NuxtLink
@@ -160,25 +155,6 @@ const nav = [
 
     <!-- Footer -->
     <div class="shrink-0 space-y-0.5 border-t border-gray-100 p-3">
-      <button
-        class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
-      >
-        <svg
-          class="h-4 w-4 shrink-0"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          viewBox="0 0 24 24"
-        >
-          <circle cx="12" cy="12" r="9" />
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M9.5 9a2.5 2.5 0 113.5 2.3c-.7.4-1 .8-1 1.7M12 17h.01"
-          />
-        </svg>
-        Help & Support
-      </button>
       <button
         class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
       >
