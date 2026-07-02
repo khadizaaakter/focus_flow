@@ -73,17 +73,6 @@ const nav = [
         </div>
         <div class="min-w-0">
           <p class="truncate text-sm font-semibold text-white">Alex Rivera</p>
-          <div class="mt-0.5 flex items-center gap-1.5">
-            <span class="relative flex h-1.5 w-1.5">
-              <span
-                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70"
-              ></span>
-              <span
-                class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400"
-              ></span>
-            </span>
-            <span class="text-[11px] font-medium text-emerald-400">Deep Work Mode</span>
-          </div>
         </div>
       </div>
     </div>
