@@ -525,10 +525,10 @@ async function stopTimer() {
         <!-- Quick-add task bar -->
         <form
           @submit.prevent="addTask"
-          class="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md transition-shadow hover:shadow-lg"
+          class="relative rounded-2xl border border-gray-200 bg-white shadow-md transition-shadow hover:shadow-lg"
         >
           <div
-            class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400"
+            class="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400"
           ></div>
 
           <p
