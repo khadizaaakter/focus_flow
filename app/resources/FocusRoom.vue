@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const API = "http://127.0.0.1:8000";
+const API = useRuntimeConfig().public.apiBase;
 
 type TimerMode = "focus" | "short" | "long";
 
@@ -63,6 +63,7 @@ async function startTimer() {
             method: "PUT",
             headers: { Accept: "application/json" },
           });
+          if (mode.value === "focus") sessionCount.value++;
         } catch {}
         activeTimerId.value = null;
       }
@@ -108,6 +109,22 @@ try {
   });
   const top = (tasks ?? []).find((t) => t.status !== "completed");
   if (top?.title) objective.value = top.title;
+} catch {}
+
+// ── Session count ─────────────────────────────────────────────────────────────
+const _today = new Date();
+const _pad2 = (n: number) => String(n).padStart(2, "0");
+const todayStr = `${_today.getFullYear()}-${_pad2(_today.getMonth() + 1)}-${_pad2(_today.getDate())}`;
+
+interface FocusTimerRecord { id: number; status: string }
+
+const sessionCount = ref(0);
+try {
+  const timers = await $fetch<FocusTimerRecord[]>(
+    `${API}/api/focus-timers?date=${todayStr}&status=completed`,
+    { headers: { Accept: "application/json" } }
+  );
+  sessionCount.value = Array.isArray(timers) ? timers.length : 0;
 } catch {}
 
 function startEditObjective() {
@@ -298,7 +315,7 @@ const progress = computed(() => Math.round((1 - timeLeft.value / DURATIONS[mode.
       <!-- Session hint -->
       <div class="mt-5 flex items-center gap-6 text-center">
         <div class="text-center">
-          <p class="text-2xl font-extrabold text-gray-900">1</p>
+          <p class="text-2xl font-extrabold text-gray-900">{{ sessionCount }}</p>
           <p class="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">Session</p>
         </div>
         <div class="h-8 w-px bg-gray-100"></div>

@@ -14,7 +14,7 @@ interface Task {
   category: string | null;
 }
 
-const API = "http://127.0.0.1:8000";
+const API = useRuntimeConfig().public.apiBase;
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 const _now = new Date();
@@ -108,6 +108,20 @@ async function fetchWeeklyTasks() {
 }
 
 await fetchWeeklyTasks();
+
+// ── Focus Score ───────────────────────────────────────────────────────────────
+const focusScore = ref<number | null>(null);
+async function fetchFocusScore() {
+  try {
+    const resp = await $fetch<{ score: number }>(`${API}/api/focus-score/today`, {
+      headers: { Accept: "application/json" },
+    });
+    focusScore.value = resp?.score ?? null;
+  } catch {
+    focusScore.value = null;
+  }
+}
+await fetchFocusScore();
 
 const activeTab = ref<"upcoming" | "completed">("upcoming");
 
@@ -405,6 +419,27 @@ const moods = [
 type MoodValue = typeof moods[number]["value"];
 const selectedMood = ref<MoodValue>("great");
 
+async function fetchTodayMood() {
+  try {
+    const resp = await $fetch<{ mood: MoodValue | null }>(`${API}/api/mood/today`, {
+      headers: { Accept: "application/json" },
+    });
+    if (resp?.mood) selectedMood.value = resp.mood;
+  } catch {}
+}
+await fetchTodayMood();
+
+async function selectMood(value: MoodValue) {
+  selectedMood.value = value;
+  try {
+    await $fetch(`${API}/api/mood`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: { mood: value },
+    });
+  } catch {}
+}
+
 // ── Focus timer ───────────────────────────────────────────────────────────────
 const TIMER_MINUTES = 25;
 const timeLeft = ref(TIMER_MINUTES * 60);
@@ -504,7 +539,7 @@ async function stopTimer() {
                 FOCUS SCORE
               </p>
               <div class="mt-1.5 flex items-center gap-2">
-                <span class="text-2xl font-extrabold">86%</span>
+                <span class="text-2xl font-extrabold">{{ focusScore !== null ? `${focusScore}%` : "—" }}</span>
                 <svg
                   class="h-5 w-5 text-emerald-400"
                   fill="none"
@@ -980,7 +1015,7 @@ async function stopTimer() {
             <button
               v-for="m in moods"
               :key="m.value"
-              @click="selectedMood = m.value"
+              @click="selectMood(m.value)"
               class="flex flex-col items-center gap-1 rounded-xl p-2 transition-all duration-150 active:scale-90"
               :class="
                 selectedMood === m.value

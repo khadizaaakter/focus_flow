@@ -8,7 +8,7 @@ const nav = [
   { label: "Planner", icon: "tasks", path: "/tasks" },
   { label: "Habits", icon: "habits", path: "/habits" },
   { label: "Focus Room", icon: "timer", path: "/focus-room" },
-  { label: "Insights", icon: "insights", path: "/insights", badge: "Soon" },
+  { label: "Insights", icon: "insights", path: "/insights" },
 ];
 </script>
 

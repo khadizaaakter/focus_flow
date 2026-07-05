@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const API = "http://127.0.0.1:8000";
+const API = useRuntimeConfig().public.apiBase;
 
 interface ApiHabit {
   id: number;
@@ -191,8 +191,24 @@ const RING_CIRC = 87.96;
 const ringOffset = computed(() => RING_CIRC - (efficiency.value / 100) * RING_CIRC);
 
 const TREND_DAYS = ["M", "T", "W", "T", "F", "S", "S"];
-const trendLastWeek = [55, 70, 50, 75, 65, 45, 68];
-const trendThisWeek = [72, 85, 60, 90, 78, 55, 82];
+
+interface FocusTrendDay { date: string; day: string; score: number; focus_minutes: number; completed_tasks: number }
+interface FocusTrendResp { period: string; data: FocusTrendDay[] }
+
+const trendLastWeek = ref<number[]>([0, 0, 0, 0, 0, 0, 0]);
+const trendThisWeek = ref<number[]>([0, 0, 0, 0, 0, 0, 0]);
+
+async function fetchFocusTrend() {
+  try {
+    const resp = await $fetch<FocusTrendResp>(`${API}/api/focus-trend`, {
+      headers: { Accept: "application/json" },
+    });
+    const scores = (resp?.data ?? []).map((d) => d.score);
+    trendLastWeek.value = scores.slice(0, 7);
+    trendThisWeek.value = scores.slice(7, 14);
+  } catch {}
+}
+await fetchFocusTrend();
 
 const frequencyOptions: Array<"daily" | "weekly" | "monthly"> = ["daily", "weekly", "monthly"];
 const colorOptions = ["blue", "emerald", "rose", "amber", "violet"] as const;
