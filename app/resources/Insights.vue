@@ -91,6 +91,64 @@ function selectPeriod(p: 7 | 30) {
   fetchOutput();
 }
 
+// ── Mood history ──────────────────────────────────────────────────────────────
+interface MoodDay { date: string; day: string; mood: string | null; mood_score: number | null }
+interface MoodHistoryResp { period: number; data: MoodDay[] }
+
+const MOOD_META: Record<string, { emoji: string; color: string; label: string }> = {
+  great:  { emoji: "😄", color: "#10b981", label: "Great" },
+  good:   { emoji: "🙂", color: "#34d399", label: "Good" },
+  steady: { emoji: "😊", color: "#f59e0b", label: "Steady" },
+  low:    { emoji: "😐", color: "#fb923c", label: "Low" },
+  bad:    { emoji: "😔", color: "#f43f5e", label: "Bad" },
+};
+
+const moodPeriod = ref<7 | 30>(7);
+const moodHistory = ref<MoodDay[]>([]);
+const moodHistoryLoading = ref(true);
+
+async function fetchMoodHistory() {
+  moodHistoryLoading.value = true;
+  try {
+    const resp = await $fetch<MoodHistoryResp>(
+      `${API}/api/mood/history?period=${moodPeriod.value}`,
+      { headers: { Accept: "application/json" } }
+    );
+    moodHistory.value = resp?.data ?? [];
+  } catch {
+    moodHistory.value = [];
+  } finally {
+    moodHistoryLoading.value = false;
+  }
+}
+
+function selectMoodPeriod(p: 7 | 30) {
+  if (moodPeriod.value === p) return;
+  moodPeriod.value = p;
+  fetchMoodHistory();
+}
+
+const moodPoints = computed(() => {
+  const n = moodHistory.value.length;
+  return moodHistory.value.map((d, i) => ({
+    ...d,
+    x: n <= 1 ? 50 : (i / (n - 1)) * 100,
+    y: d.mood_score ? 100 - ((d.mood_score - 1) / 4) * 100 : null,
+  }));
+});
+
+const moodLinePath = computed(() => {
+  const known = moodPoints.value.filter((p) => p.y !== null);
+  if (known.length === 0) return "";
+  return known.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+});
+
+const hasMoodData = computed(() => moodHistory.value.some((d) => d.mood !== null));
+
+function moodMeta(mood: string | null) {
+  return mood ? MOOD_META[mood] : undefined;
+}
+
 // ── Activity focus ────────────────────────────────────────────────────────────
 interface ActivityBreakdown { category: string; label: string; count: number; percentage: number }
 interface ActivityResp { total_tasks: number; breakdown: ActivityBreakdown[] }
@@ -160,7 +218,7 @@ function isPeakHour(h: number): boolean {
   return h >= peakHours.value.peak_start && h < peakHours.value.peak_end;
 }
 
-await Promise.all([fetchWeekly(), fetchSmart(), fetchOutput(), fetchActivity(), fetchPeakHours()]);
+await Promise.all([fetchWeekly(), fetchSmart(), fetchOutput(), fetchActivity(), fetchPeakHours(), fetchMoodHistory()]);
 </script>
 
 <template>
@@ -293,6 +351,83 @@ await Promise.all([fetchWeekly(), fetchSmart(), fetchOutput(), fetchActivity(), 
             <span v-if="outputPeriod === 7 || i % 4 === 0" class="text-[9px] font-medium text-gray-300">{{ d.day }}</span>
           </div>
         </div>
+      </div>
+
+      <!-- ── Mood history ────────────────────────────────────────────────── -->
+      <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+        <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 class="font-bold text-gray-900">Mood History</h3>
+            <p class="mt-0.5 text-xs text-gray-400">How you've been feeling day to day.</p>
+          </div>
+          <div class="flex gap-1 rounded-xl border border-gray-100 bg-gray-50 p-1">
+            <button
+              v-for="p in [7, 30]"
+              :key="p"
+              @click="selectMoodPeriod(p as 7 | 30)"
+              class="rounded-lg px-3 py-1 text-xs font-semibold transition"
+              :class="moodPeriod === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'"
+            >
+              {{ p }}d
+            </button>
+          </div>
+        </div>
+
+        <div v-if="moodHistoryLoading" class="h-40 animate-pulse rounded-xl bg-gray-100"></div>
+        <div v-else-if="!hasMoodData" class="py-8 text-center text-xs text-gray-400">
+          No mood entries logged for this period yet.
+        </div>
+        <template v-else>
+          <div class="relative h-40 w-full">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="h-full w-full overflow-visible">
+              <line
+                v-for="gy in [0, 25, 50, 75, 100]"
+                :key="gy"
+                x1="0"
+                :y1="gy"
+                x2="100"
+                :y2="gy"
+                stroke="#f1f5f9"
+                stroke-width="0.5"
+                vector-effect="non-scaling-stroke"
+              />
+              <path
+                v-if="moodLinePath"
+                :d="moodLinePath"
+                fill="none"
+                stroke="#94a3b8"
+                stroke-width="1.5"
+                vector-effect="non-scaling-stroke"
+              />
+              <circle
+                v-for="p in moodPoints.filter((p) => p.y !== null)"
+                :key="p.date"
+                :cx="p.x"
+                :cy="p.y!"
+                r="1.8"
+                :fill="moodMeta(p.mood)?.color ?? '#94a3b8'"
+                vector-effect="non-scaling-stroke"
+              >
+                <title>{{ p.date }}: {{ moodMeta(p.mood)?.label ?? "No entry" }}</title>
+              </circle>
+            </svg>
+          </div>
+          <div class="mt-2 flex items-end gap-1 sm:gap-1.5">
+            <div
+              v-for="(d, i) in moodHistory"
+              :key="d.date"
+              class="flex flex-1 flex-col items-center gap-1"
+            >
+              <span v-if="moodPeriod === 7 || i % 4 === 0" class="text-[9px] font-medium text-gray-300">{{ d.day }}</span>
+            </div>
+          </div>
+          <div class="mt-4 flex flex-wrap items-center justify-center gap-3 border-t border-gray-100 pt-4">
+            <div v-for="(meta, key) in MOOD_META" :key="key" class="flex items-center gap-1.5">
+              <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: meta.color }"></span>
+              <span class="text-[10px] font-semibold text-gray-500">{{ meta.label }}</span>
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- ── Activity focus + Peak hours ─────────────────────────────────── -->

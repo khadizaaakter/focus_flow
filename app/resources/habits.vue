@@ -58,6 +58,22 @@ function getWeekDates(): string[] {
 
 const WEEK_DATES = getWeekDates();
 
+function lastNDates(n: number): string[] {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(_now);
+    d.setDate(d.getDate() - i);
+    return `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
+  });
+}
+
+const expandedStreakId = ref<number | null>(null);
+function toggleStreakView(id: number) {
+  expandedStreakId.value = expandedStreakId.value === id ? null : id;
+}
+function isStreakDay(streak: number, dateStr: string | undefined): boolean {
+  return streak > 0 && !!dateStr && lastNDates(streak).includes(dateStr);
+}
+
 function colorFor(h: ApiHabit, idx: number): ColorTheme {
   const key = (h.category_color ?? "").toLowerCase();
   return COLOR_MAP[key] ?? DEFAULT_COLORS[idx % DEFAULT_COLORS.length] ?? DEFAULT_COLORS[0]!;
@@ -353,7 +369,11 @@ const colorBorder: Record<string, string> = {
                   >
                     <div
                       class="flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-150 sm:h-8 sm:w-8"
-                      :class="done ? habit.color.check + ' shadow-sm' : 'bg-gray-100'"
+                      :class="done
+                        ? habit.color.check + ' shadow-sm'
+                        : (expandedStreakId === habit.id && isStreakDay(habit.streak, WEEK_DATES[i])
+                            ? habit.color.activeBg + ' opacity-50'
+                            : 'bg-gray-100')"
                     >
                       <svg v-if="done" class="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -365,8 +385,14 @@ const colorBorder: Record<string, string> = {
 
                 <!-- Streak + actions -->
                 <div class="flex items-center justify-between gap-4 sm:justify-end">
-                  <div class="text-right">
-                    <p class="text-2xl font-extrabold text-gray-900 sm:text-3xl">{{ String(habit.streak).padStart(2, '0') }}</p>
+                  <div
+                    class="cursor-pointer select-none text-right"
+                    role="button"
+                    :aria-pressed="expandedStreakId === habit.id"
+                    :aria-label="`Toggle streak progress for ${habit.name}`"
+                    @click="toggleStreakView(habit.id)"
+                  >
+                    <p class="text-2xl font-extrabold text-gray-900 transition sm:text-3xl" :class="{ [habit.color.name]: expandedStreakId === habit.id }">{{ String(habit.streak).padStart(2, '0') }}</p>
                     <p class="text-[9px] font-bold uppercase tracking-[0.12em] text-gray-400">Day Streak</p>
                   </div>
 
