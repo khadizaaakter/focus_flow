@@ -57,10 +57,10 @@ const nav = [
     </div>
 
     <!-- User card -->
-    <div
+    <!-- <div
       class="mx-4 mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4"
-    >
-      <div class="flex items-center gap-3">
+    > -->
+    <!-- <div class="flex items-center gap-3">
         <div class="relative shrink-0">
           <img
             src="https://i.pravatar.cc/80?img=12"
@@ -74,8 +74,8 @@ const nav = [
         <div class="min-w-0">
           <p class="truncate text-sm font-semibold text-white">Alex Rivera</p>
         </div>
-      </div>
-    </div>
+      </div> -->
+    <!-- </div> -->
 
     <!-- Navigation -->
     <nav class="flex-1 space-y-0.5 overflow-y-auto px-3">
